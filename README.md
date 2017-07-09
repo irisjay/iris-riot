@@ -1,4 +1,4 @@
-## Iris version of Riot 3. + Pre compiled expressions, + Proper yield scopes
+## iris version of riot 3. + pre compiled expressions, + proper yield scopes
 (requires iris-riot-compiler)
 
 [![Riot logo](http://riotjs.com/img/logo/riot480x.png)](http://riotjs.com/)
