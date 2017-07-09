@@ -1,4 +1,4 @@
-/* Riot v3.6.1, @license MIT */
+/* Riot v3.6.0, @license MIT */
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
@@ -711,6 +711,11 @@ var brackets = (function (UNDEF) {
  * tmpl.loopKeys - Get the keys for an 'each' loop (used by `_each`)
  */
 
+    /*
+    window.called = 0;
+    window .eval_ms = 0;
+    //*/
+
 /* istanbul ignore next */
 var tmpl = (function () {
 
@@ -718,13 +723,19 @@ var tmpl = (function () {
 
   function _tmpl (str, data) {
     if (!str) { return str }
-
-    return (_cache[str] || (_cache[str] = _create(str))).call(
-      data, _logErr.bind({
-        data: data,
-        tmpl: str
-      })
-    )
+    
+    if (str .indexOf ('{expression:') != -1 || str .indexOf ('{ enter yield }') != -1 || str .indexOf ('{ exit yield }') != -1 || str .indexOf ('{ref prefix}') != -1) {
+      data ._tmpl_cache = data ._tmpl_cache || {};
+      return (data ._tmpl_cache[str] || (data ._tmpl_cache[str] = create_native(str, data)))(data)
+    }
+    else {
+      return (_cache[str] || (_cache[str] = _create(str))).call(
+        data, _logErr.bind({
+          data: data,
+          tmpl: str
+        })
+      )
+    }
   }
 
   _tmpl.hasExpr = brackets.hasExpr;
@@ -754,6 +765,94 @@ var tmpl = (function () {
     }
   }
 
+
+  var climb = function (n, scope) {
+                for (var i = 0; i < n; i ++) {
+                  scope = scope .parent;
+                }
+                return scope;
+              }
+  var _yield = function () { return 'yield:' }
+  var _self = function () { return 'self:' }
+  var x = function (str, apparent_scope) {
+            if (str .trim () === 'enter yield') {
+              return apparent_scope ._yield_on;
+            }
+            else if (str .trim () === 'exit yield') {
+              return apparent_scope ._yield_off;
+            }
+            else if (str .trim () === 'ref prefix') {
+              if (apparent_scope ._yielding)
+                return _yield;
+              else
+                return _self;
+            }
+            else {
+              //console.log('path a');
+              var fn;
+              return  function (_item) {
+                if (! fn) {
+                  var expression = /expression:([^:]+):(\d+)/.exec(str);
+                  //var tag_name = expression[1];
+                  var n = expression[2];
+                  
+                  if (! apparent_scope ._loaded) apparent_scope = apparent_scope .parent;
+                  //var scope = window .tag_scopes [tag_name];
+                  
+                  var scope = apparent_scope;
+                  
+                  if (scope ._yield_level) {
+                    scope = climb (scope ._yield_level, scope);
+                    while (scope ._yield_levels)
+                      scope = climb (scope ._yield_levels, scope);
+                  }
+                  //console.log(str, scope);
+                  fn = scope.expressions[n-1]
+                }
+                return fn (_item)
+              }/*/
+              return function(_item){
+                try {return scope.expressions[n-1](_item);} catch (e) {console.error(e)}
+              }/**/
+            }
+          }
+  var q = function (x){return function (){return x;}};
+  var create_native = function (str, tag) {
+    //console.log('path', str);
+      var
+        expr,
+        parts = brackets.split(str.replace(RE_DQUOTE, '"'));
+  
+      if (parts.length > 2 || parts[0]) {
+        var i, j, list = [];
+  
+        for (i = j = 0; i < parts.length; ++i) {
+  
+          expr = parts[i];
+  
+          if (expr && (expr = i & 1
+  
+              ? x(expr, tag)
+  
+              : q(expr)
+  
+            )) { list[j++] = expr; }
+  
+        }
+  
+        expr = j < 2 ? list[0]
+             : function (_item) { return list.map(function(x){return x(_item);}).join('')};
+  
+      } else {
+        expr = x(parts[1], tag);
+      }
+      return expr;/*
+      return function (_item) {
+        window.called++;var start = window.performance.now();
+        var res =  expr(_item);
+        window .eval_ms += window.performance.now() - start; return res; 
+      }//*/
+  }
   function _create (str) {
     var expr = _getTmpl(str);
 
@@ -2153,7 +2252,7 @@ function unregister$1(name) {
   __TAG_IMPL[name] = null;
 }
 
-var version$1 = 'v3.6.1';
+var version$1 = 'v3.6.0';
 
 
 var core = Object.freeze({
